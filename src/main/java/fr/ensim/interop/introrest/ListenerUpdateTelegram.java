@@ -20,9 +20,13 @@ public class ListenerUpdateTelegram {
 	private String botToken;
 
 	private final Map<String, String> chatStates = new HashMap<>();
-
 	private final RestTemplate restTemplate = new RestTemplate();
 	private int lastUpdateId = 0;
+
+	private final List<String> villesConnues = Arrays.asList(
+			"paris", "lyon", "marseille", "toulouse", "nantes",
+			"lille", "bordeaux", "strasbourg", "rennes", "le mans"
+	);
 
 	@PostConstruct
 	public void startPolling() {
@@ -43,27 +47,49 @@ public class ListenerUpdateTelegram {
 							String chatId = String.valueOf(message.getChat().getId());
 
 							if (text != null) {
+								String lower = text.toLowerCase();
 
 								if (chatStates.containsKey(chatId) && chatStates.get(chatId).equals("awaiting_movie_genre")) {
 									String movieResult = restTemplate.getForObject("http://localhost:9090/omdb?genre=" + text, String.class);
 									sendMessage(baseUrl, chatId, movieResult);
 									chatStates.remove(chatId);
+									lastUpdateId = update.getUpdateId();
 									return;
 								}
 
-								if (text.toLowerCase().contains("blague")) {
+								if (lower.contains("blague")) {
 									String joke = restTemplate.getForObject("http://localhost:9090/joke", String.class);
 									sendMessage(baseUrl, chatId, joke);
-								} else if (text.toLowerCase().contains("film") || text.toLowerCase().contains("movie")) {
+									lastUpdateId = update.getUpdateId();
+									return;
+								}
+
+								if (lower.contains("film") || lower.contains("movie")) {
 									sendMessage(baseUrl, chatId, "Quel genre de film veux-tu ? (ex : action, comédie, horreur...)");
 									chatStates.put(chatId, "awaiting_movie_genre");
-								} else if (text.toLowerCase().contains("meteo")) {
-									try {
-										boolean forecast = text.toLowerCase().contains("semaine")
-												|| text.toLowerCase().contains("prevision")
-												|| text.toLowerCase().contains("demain");
+									lastUpdateId = update.getUpdateId();
+									return;
+								}
 
-										String weatherUrl = "http://localhost:9090/weather?city=Le Mans&forecast=" + forecast;
+								if (lower.contains("meteo")) {
+									try {
+										boolean forecast = lower.contains("semaine") || lower.contains("prevision") || lower.contains("demain");
+
+										String ville = null;
+										for (String v : villesConnues) {
+											if (lower.contains(v)) {
+												ville = capitalize(v);
+												break;
+											}
+										}
+
+										if (ville == null) {
+											sendMessage(baseUrl, chatId, "Je ne connais pas cette ville. Essaie par exemple : Paris, Lyon, Nantes...");
+											lastUpdateId = update.getUpdateId();
+											return;
+										}
+
+										String weatherUrl = "http://localhost:9090/weather?city=" + ville + "&forecast=" + forecast;
 										Map<?, ?> meteo = restTemplate.getForObject(weatherUrl, Map.class);
 
 										if (meteo != null) {
@@ -74,7 +100,7 @@ public class ListenerUpdateTelegram {
 
 											if (forecast && meteo.containsKey("prevision")) {
 												List<?> previsions = (List<?>) meteo.get("prevision");
-												messageText.append("\n📅 prevision :\n");
+												messageText.append("\n📅 prévisions :\n");
 												for (Object o : previsions) {
 													Map<?, ?> jour = (Map<?, ?>) o;
 													messageText.append("🗓 ").append(jour.get("date")).append(" - ")
@@ -84,16 +110,22 @@ public class ListenerUpdateTelegram {
 											}
 
 											sendMessage(baseUrl, chatId, messageText.toString());
+											lastUpdateId = update.getUpdateId();
+											return;
 										} else {
-											sendMessage(baseUrl, chatId, "Impossible de récupérer la meteo.");
+											sendMessage(baseUrl, chatId, "Impossible de récupérer la météo.");
+											lastUpdateId = update.getUpdateId();
+											return;
 										}
 									} catch (Exception e) {
-										sendMessage(baseUrl, chatId, "Erreur lors de la récupération de la meteo.");
+										sendMessage(baseUrl, chatId, "Erreur lors de la récupération de la météo.");
+										lastUpdateId = update.getUpdateId();
+										return;
 									}
 								}
-
 							}
 
+							// par défaut : marquer le message comme traité
 							lastUpdateId = update.getUpdateId();
 						}
 					}
@@ -107,5 +139,9 @@ public class ListenerUpdateTelegram {
 	private void sendMessage(String baseUrl, String chatId, String text) {
 		String url = baseUrl + "/sendMessage?chat_id=" + chatId + "&text=" + text;
 		restTemplate.getForObject(url, String.class);
+	}
+
+	private String capitalize(String s) {
+		return s.substring(0, 1).toUpperCase() + s.substring(1);
 	}
 }

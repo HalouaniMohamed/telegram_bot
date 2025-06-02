@@ -1,5 +1,6 @@
 package fr.ensim.interop.introrest.z;
 
+import fr.ensim.interop.introrest.model.joke.Joke;
 import fr.ensim.interop.introrest.model.telegram.ApiResponseUpdateTelegram;
 import fr.ensim.interop.introrest.model.telegram.Message;
 import fr.ensim.interop.introrest.model.telegram.Update;
@@ -58,8 +59,20 @@ public class ListenerUpdateTelegram {
 								}
 
 								if (lower.contains("blague")) {
-									String joke = restTemplate.getForObject("http://localhost:9090/joke", String.class);
-									sendMessage(baseUrl, chatId, joke);
+									String quality = null;
+									if (lower.contains("nulle")) quality = "nulle";
+									else if (lower.contains("bonne") || lower.contains("top")) quality = "bonne";
+
+									String jokeUrl = "http://localhost:9090/joke";
+									if (quality != null) jokeUrl += "?quality=" + quality;
+
+									Joke joke = restTemplate.getForObject(jokeUrl, Joke.class);
+									if (joke != null) {
+										sendMessage(baseUrl, chatId, "🤣 " + joke.getTexte() + " (Note : " + joke.getNote() + "/10)");
+									} else {
+										sendMessage(baseUrl, chatId, "Pas de blague disponible.");
+									}
+
 									lastUpdateId = update.getUpdateId();
 									return;
 								}

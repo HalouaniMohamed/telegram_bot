@@ -13,7 +13,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(apiTokenInterceptor)
-                .addPathPatterns("/joke/**"); // protège toutes les routes /joke/*
+        //registry.addInterceptor(apiTokenInterceptor)
+         //     .addPathPatterns("/joke/**"); // protège toutes les routes /joke/*
     }
 }

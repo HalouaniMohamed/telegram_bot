@@ -1,4 +1,4 @@
-package fr.ensim.interop.introrest.z;
+package fr.ensim.interop.introrest;
 
 import fr.ensim.interop.introrest.model.joke.Joke;
 import fr.ensim.interop.introrest.model.telegram.ApiResponseUpdateTelegram;
@@ -58,6 +58,108 @@ public class ListenerUpdateTelegram {
 									return;
 								}
 
+								if (lower.startsWith("ajoute blague")) {
+									String[] parts = text.split("\\|");
+									if (parts.length != 4) {
+										sendMessage(baseUrl, chatId, "Format attendu : ajoute blague | titre | texte | note");
+										lastUpdateId = update.getUpdateId();
+										return;
+									}
+									String titre = parts[1].trim();
+									String texte = parts[2].trim();
+									int note;
+									try {
+										note = Integer.parseInt(parts[3].trim());
+									} catch (NumberFormatException e) {
+										sendMessage(baseUrl, chatId, "Note invalide. Elle doit être un entier.");
+										lastUpdateId = update.getUpdateId();
+										return;
+									}
+
+									Map<String, Object> newJoke = new HashMap<>();
+									newJoke.put("titre", titre);
+									newJoke.put("texte", texte);
+									newJoke.put("note", note);
+
+									try {
+										restTemplate.postForObject("http://localhost:9090/joke", newJoke, String.class);
+										sendMessage(baseUrl, chatId, "Blague ajoutée !");
+									} catch (Exception e) {
+										sendMessage(baseUrl, chatId, "Erreur lors de l'ajout de la blague.");
+									}
+									lastUpdateId = update.getUpdateId();
+									return;
+								}
+
+
+								if (lower.startsWith("modifie blague")) {
+									String[] parts = text.split("\\|");
+									if (parts.length != 5) {
+										sendMessage(baseUrl, chatId, "Format : modifie blague | id | titre | texte | note");
+										lastUpdateId = update.getUpdateId();
+										return;
+									}
+									int id;
+									try {
+										id = Integer.parseInt(parts[1].trim());
+									} catch (NumberFormatException e) {
+										sendMessage(baseUrl, chatId, "ID invalide.");
+										lastUpdateId = update.getUpdateId();
+										return;
+									}
+									String titre = parts[2].trim();
+									String texte = parts[3].trim();
+									int note;
+									try {
+										note = Integer.parseInt(parts[4].trim());
+									} catch (NumberFormatException e) {
+										sendMessage(baseUrl, chatId, "Note invalide.");
+										lastUpdateId = update.getUpdateId();
+										return;
+									}
+
+									Map<String, Object> updatedJoke = new HashMap<>();
+									updatedJoke.put("titre", titre);
+									updatedJoke.put("texte", texte);
+									updatedJoke.put("note", note);
+
+									try {
+										restTemplate.put("http://localhost:9090/joke/" + id, updatedJoke);
+										sendMessage(baseUrl, chatId, "Blague modifiée !");
+									} catch (Exception e) {
+										sendMessage(baseUrl, chatId, "Erreur lors de la modification.");
+									}
+									lastUpdateId = update.getUpdateId();
+									return;
+								}
+
+
+								if (lower.startsWith("supprime blague")) {
+									String[] parts = text.split("\\s+");
+									if (parts.length != 3) {
+										sendMessage(baseUrl, chatId, "Format : supprime blague [id]");
+										lastUpdateId = update.getUpdateId();
+										return;
+									}
+									int id;
+									try {
+										id = Integer.parseInt(parts[2].trim());
+									} catch (NumberFormatException e) {
+										sendMessage(baseUrl, chatId, "ID invalide.");
+										lastUpdateId = update.getUpdateId();
+										return;
+									}
+
+									try {
+										restTemplate.delete("http://localhost:9090/joke/" + id);
+										sendMessage(baseUrl, chatId, "Blague supprimée !");
+									} catch (Exception e) {
+										sendMessage(baseUrl, chatId, "Erreur lors de la suppression.");
+									}
+									lastUpdateId = update.getUpdateId();
+									return;
+								}
+
 								if (lower.contains("blague")) {
 									String quality = null;
 									if (lower.contains("nulle")) quality = "nulle";
@@ -77,6 +179,8 @@ public class ListenerUpdateTelegram {
 									return;
 								}
 
+
+
 								if (lower.contains("film") || lower.contains("movie")) {
 									sendMessage(baseUrl, chatId, "Quel genre de film veux-tu ? (ex : action, comédie, horreur...)");
 									chatStates.put(chatId, "awaiting_movie_genre");
@@ -86,7 +190,7 @@ public class ListenerUpdateTelegram {
 
 								if (lower.contains("meteo")) {
 									try {
-										boolean forecast = lower.contains("semaine") || lower.contains("prevision") || lower.contains("demain");
+										boolean forecast = lower.contains("semaine") || lower.contains("prévision") || lower.contains("demain");
 
 										String ville = null;
 										for (String v : villesConnues) {
@@ -138,7 +242,6 @@ public class ListenerUpdateTelegram {
 								}
 							}
 
-							// par défaut : marquer le message comme traité
 							lastUpdateId = update.getUpdateId();
 						}
 					}

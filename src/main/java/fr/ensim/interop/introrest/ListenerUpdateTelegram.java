@@ -166,7 +166,11 @@ public class ListenerUpdateTelegram {
 									else if (lower.contains("bonne") || lower.contains("top")) quality = "bonne";
 
 									String jokeUrl = "http://localhost:9090/joke";
-									if (quality != null) jokeUrl += "?quality=" + quality;
+									if ("nulle".equals(quality)) {
+										jokeUrl += "?rate=<4";
+									} else if ("bonne".equals(quality)) {
+										jokeUrl += "?rate=>7";
+									}
 
 									Joke joke = restTemplate.getForObject(jokeUrl, Joke.class);
 									if (joke != null) {
